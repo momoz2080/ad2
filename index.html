@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Popoosh's Reading Ladder</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/*
+  ═══════════════════════════════════════════════════════════
+  POPOOSH'S READING LADDER — a growing series
+  ───────────────────────────────────────────────────────────
+  This app is built in PHASES. Each phase adds new tabs to the
+  LEVELS array further down — it never replaces earlier ones,
+  so Adrian keeps climbing the same ladder instead of starting
+  over in a new app.
+
+  PHASE 1 (built): CVC words in single sentences, six tabs —
+  Short A / I / O / E / U, then Mixed — each tab's sentences
+  getting a little longer/harder as you go.
+
+  PHASE 2 (built): consonant blends & digraphs, five more
+  tabs — L-Blends, R-Blends, S-Blends, Digraphs, then a Mixed
+  Blends & Digraphs tab that combines everything so far
+  (Phase 1 CVC words included).
+
+  PHASE 3 (built): long-vowel silent-e (VCe) words, five
+  more tabs — A-E, I-E, O-E, U-E, then a Mixed Silent-E tab
+  combining all four plus earlier phases. The final "e" in a
+  silent-e word is shown smaller and lighter everywhere in the
+  app, as a visual cue that it's quiet.
+
+  PHASE 4 (this build): vowel teams & r-controlled vowels, six
+  more tabs — Long-A Teams (ai/ay), Long-E Teams (ee/ea),
+  Long-O Teams (oa/ow), R-Controlled (ar/or/er/ir/ur),
+  Diphthongs (oi/oy/ou/ow), then a Vowel Teams Mixed tab
+  combining all of it plus earlier phases.
+
+  This closes out the core Grade 1 phonics scope-and-sequence
+  (CVC -> blends/digraphs -> silent-e -> vowel teams). No
+  further phase is currently planned — a natural Phase 5, if
+  wanted later, would be multisyllable/compound words. When a
+  future phase is added, look for the "LEVELS" array below and
+  append new tab objects to it — everything else (tabs UI,
+  scrub bar, recording, stars, piggy bank) already supports
+  any number of levels.
+  ═══════════════════════════════════════════════════════════
+*/
+  :root {
+    --paper:   #fffdf5;
+    --ink:     #2a2318;
+    --muted:   #7a6e5f;
+    --amber:   #f5a623;
+    --amber-glow: rgba(245,166,35,0.22);
+    --teal:    #1fa2a6;
+    --teal-glow: rgba(31,162,166,0.18);
+    --coral:   #ff7a5c;
+    --coral-glow: rgba(255,122,92,0.2);
+    --shadow:  rgba(40,30,10,0.15);
+    --radius:  22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  html, body {
+    height: 100%;
+    font-family: 'Atkinson Hyperlegible', sans-serif;
+    background: #e8e0d0;
+  }
+
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,   transparent, transparent 3px, rgba(0,0,0,0.012) 3px, rgba(0,0,0,0.012) 4px),
+      repeating-linear-gradient(90deg,  transparent, transparent 3px, rgba(0,0,0,0.012) 3px, rgba(0,0,0,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+
+  .stage {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  /* ──────────── TOP BAR ──────────── */
+  .top-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .app-title {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--ink);
+  }
+  .badge-row { display: flex; gap: 8px; }
+  .star-counter, .piggy-btn {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 12px;
+    transition: transform 0.25s;
+  }
+  .star-counter { color: var(--ink); background: rgba(245,166,35,0.22); }
+  .piggy-btn { color: var(--ink); background: var(--teal-glow); cursor: pointer; }
+  .star-counter.pop, .piggy-btn.pop { animation: pill-pop 0.5s ease; }
+  @keyframes pill-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  /* ──────────── TABS ──────────── */
+  .tabs-row {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs-row::-webkit-scrollbar { height: 4px; }
+  .tab-btn {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    color: var(--muted);
+    background: rgba(255,255,255,0.6);
+    border: none;
+    border-radius: 16px;
+    padding: 8px 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s, transform 0.1s;
+  }
+  .tab-btn.active {
+    background: var(--ink);
+    color: white;
+    transform: scale(1.04);
+  }
+  .tab-btn.tab-done::after { content: " ✓"; }
+
+  /* ──────────── PROGRESS ──────────── */
+  .progress-row {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .sentence-counter {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .dot-row { display: flex; gap: 6px; }
+  .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: rgba(122,110,95,0.25);
+    transition: background 0.3s, transform 0.3s;
+  }
+  .dot.done    { background: var(--amber); }
+  .dot.current { background: var(--ink); transform: scale(1.3); }
+
+  /* ──────────── MAIN SENTENCE STAGE ──────────── */
+  .sentence-card {
+    width: 100%;
+    max-width: 640px;
+    flex: 1;
+    min-height: 300px;
+    background: var(--paper);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 0 rgba(0,0,0,0.08), 0 14px 40px var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
+    padding: 30px 24px;
+    position: relative;
+  }
+
+  .words-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    row-gap: 22px;
+    column-gap: 26px;
+  }
+  .word-unit { display: inline-flex; flex-direction: column; align-items: stretch; width: max-content; }
+  .word-text {
+    display: block;
+    width: max-content;
+    margin: 0 auto;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.8rem, 8vw, 3rem);
+    color: var(--ink);
+    white-space: nowrap;
+    border-radius: 14px;
+    padding: 4px 12px;
+    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+  .word-text.word-past { color: var(--muted); }
+  .word-text.word-current {
+    background: var(--amber);
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px var(--amber-glow);
+  }
+  .chunk { display: inline-block; padding: 0 1px; }
+  .chunk.chunk-pair { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .word-text.word-current .chunk.chunk-pair { text-decoration-color: rgba(255,255,255,0.7); }
+  .word-text:not(.word-current) .chunk.chunk-pair { text-decoration-color: rgba(31,162,166,0.45); }
+  .chunk.chunk-punct { opacity: 0.7; }
+  .chunk.chunk-silent { opacity: 0.55; font-size: 0.68em; }
+
+  /* ──────────── SCRUB BAR (paw button) ──────────── */
+  .sentence-scrub {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    height: 40px;
+    border-radius: 20px;
+    background: rgba(122,110,95,0.14);
+    touch-action: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sentence-scrub-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 0%;
+    border-radius: 20px;
+    background: var(--amber-glow);
+    pointer-events: none;
+  }
+  .sentence-scrub-handle {
+    position: absolute; top: 50%; left: 0%;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 4px var(--paper);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+  }
+
+  .scrub-hint {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    color: var(--teal);
+    text-align: center;
+  }
+
+  /* ──────────── CONTROLS ──────────── */
+  .controls-row {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .btn-read {
+    flex: 1;
+    height: 54px;
+    border-radius: 16px;
+    border: none;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: white;
+    background: linear-gradient(160deg, #f5a623 0%, #e0891a 100%);
+    box-shadow: 0 5px 0 #b86c10, 0 8px 18px var(--shadow);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn-read:active { transform: translateY(4px); box-shadow: 0 1px 0 #b86c10; }
+  .btn-read.reading {
+    background: linear-gradient(160deg, #e0483a 0%, #b8342a 100%);
+    box-shadow: 0 5px 0 #8a241d, 0 8px 18px var(--shadow);
+    animation: toggle-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes toggle-pulse {
+    0%,100% { box-shadow: 0 5px 0 #8a241d, 0 8px 18px rgba(224,72,58,0.35); }
+    50%     { box-shadow: 0 5px 0 #8a241d, 0 8px 22px rgba(224,72,58,0.65); }
+  }
+
+  .record-row {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .btn-record, .btn-play {
+    flex: 1;
+    height: 50px;
+    border-radius: 16px;
+    border: none;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn-record:active, .btn-play:active { transform: translateY(3px); }
+  .btn-record {
+    background: white;
+    color: var(--coral);
+    box-shadow: 0 4px 0 #ccc, 0 6px 14px var(--shadow);
+  }
+  .btn-record.recording {
+    background: var(--coral);
+    color: white;
+    box-shadow: 0 4px 0 #c14e34, 0 6px 14px var(--coral-glow);
+    animation: toggle-pulse-coral 1s ease-in-out infinite;
+  }
+  @keyframes toggle-pulse-coral {
+    0%,100% { box-shadow: 0 4px 0 #c14e34, 0 6px 14px rgba(255,122,92,0.35); }
+    50%     { box-shadow: 0 4px 0 #c14e34, 0 6px 18px rgba(255,122,92,0.65); }
+  }
+  .btn-play {
+    background: white;
+    color: var(--teal);
+    box-shadow: 0 4px 0 #ccc, 0 6px 14px var(--shadow);
+  }
+  .btn-play:disabled { opacity: 0.45; cursor: default; box-shadow: 0 4px 0 #ddd; }
+
+  /* toast banner — used instead of alert(), which some
+     hosting contexts (e.g. sandboxed previews) block silently */
+  .toast-banner {
+    position: fixed;
+    left: 50%; bottom: 24px;
+    transform: translate(-50%, 20px);
+    max-width: 90vw;
+    background: var(--ink);
+    color: white;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-align: center;
+    border-radius: 16px;
+    padding: 12px 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 200;
+  }
+  .toast-banner.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  /* ──────────── NAV ROW ──────────── */
+  .bottom-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .nav-btn {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s, box-shadow 0.1s;
+    background: white;
+    color: var(--ink);
+    box-shadow: 0 4px 0 #ccc, 0 6px 14px var(--shadow);
+  }
+  .nav-btn:active { transform: scale(0.93); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+  .nav-btn.btn-next-primary {
+    flex: 1;
+    border-radius: 16px;
+    background: var(--ink);
+    color: white;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 0 #111, 0 6px 14px var(--shadow);
+  }
+
+  /* ──────────── TAB-COMPLETE / PHASE-COMPLETE OVERLAY ──────────── */
+  .done-screen {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: var(--paper);
+    border-radius: var(--radius);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: 30px;
+    z-index: 10;
+  }
+  .done-screen.show { display: flex; animation: pop-in 0.4s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pop-in { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+  .done-trophy { font-size: 4rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.18)); }
+  .done-title { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.5rem; color: var(--ink); }
+  .done-sub { font-size: 0.9rem; color: var(--muted); font-weight: 700; }
+  .replay-btn {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    color: white;
+    background: linear-gradient(160deg, #f5a623 0%, #e0891a 100%);
+    border: none;
+    border-radius: 14px;
+    padding: 13px 30px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #b86c10;
+    margin-top: 4px;
+  }
+  .replay-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b86c10; }
+
+  /* ──────────── PIGGY BANK OVERLAY ──────────── */
+  .piggy-overlay {
+    position: fixed; inset: 0;
+    background: var(--paper);
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .piggy-overlay.show { display: flex; animation: pop-in 0.3s ease; }
+  .piggy-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .piggy-title { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--ink); }
+  .piggy-close {
+    width: 42px; height: 42px; border-radius: 50%; border: none; background: white;
+    box-shadow: 0 3px 0 #ccc, 0 5px 12px var(--shadow); font-size: 1.1rem; cursor: pointer;
+  }
+  .piggy-close:active { transform: translateY(2px); box-shadow: none; }
+  .piggy-total {
+    font-family: 'Baloo 2', sans-serif; font-weight: 800;
+    font-size: clamp(2.4rem, 12vw, 3.2rem);
+    color: var(--ink); text-align: center; margin: 14px 0 6px; flex-shrink: 0;
+  }
+  .piggy-tabs { display: flex; gap: 8px; justify-content: center; flex-shrink: 0; margin-bottom: 10px; }
+  .piggy-tab {
+    font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--muted);
+    background: rgba(122,110,95,0.14); border: none; border-radius: 16px; padding: 7px 16px; cursor: pointer;
+  }
+  .piggy-tab.active { background: var(--amber); color: white; }
+  .piggy-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 12px; }
+  .piggy-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: white; border-radius: 12px; padding: 10px 14px; box-shadow: 0 2px 6px var(--shadow);
+  }
+  button.piggy-row {
+    width: 100%; border: none; cursor: pointer; text-align: left; font: inherit;
+  }
+  button.piggy-row:active { transform: translateY(2px); }
+  .piggy-row-label { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--ink); }
+  .piggy-row-date { font-size: 0.75rem; color: var(--muted); }
+  .piggy-row-amount { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1rem; color: var(--teal); }
+  .piggy-row-amount.negative { color: var(--muted); }
+  .piggy-empty { text-align: center; color: var(--muted); font-weight: 700; padding: 30px 10px; }
+  .piggy-cashout-btn {
+    font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1rem; color: white;
+    background: linear-gradient(160deg, #1fa2a6 0%, #16777a 100%); border: none; border-radius: 16px;
+    padding: 14px; cursor: pointer; box-shadow: 0 5px 0 #115a5c; flex-shrink: 0;
+  }
+  .piggy-cashout-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #115a5c; }
+  .piggy-cashout-btn:disabled { opacity: 0.4; cursor: default; }
+  .piggy-confirm {
+    display: none; position: absolute; inset: 0; background: rgba(42,35,24,0.45);
+    align-items: center; justify-content: center; padding: 24px; z-index: 70;
+  }
+  .piggy-confirm.show { display: flex; }
+  .piggy-confirm-box { background: var(--paper); border-radius: 18px; padding: 24px; max-width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+  .piggy-confirm-text { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--ink); margin-bottom: 16px; }
+  .piggy-confirm-row { display: flex; gap: 10px; justify-content: center; }
+  .piggy-confirm-btn { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 0.9rem; border: none; border-radius: 12px; padding: 10px 16px; cursor: pointer; }
+  .piggy-confirm-no { background: rgba(122,110,95,0.15); color: var(--ink); }
+  .piggy-confirm-yes { background: var(--teal); color: white; }
+
+  .confetti-piece {
+    position: fixed; top: -20px; z-index: 99;
+    border-radius: 2px; pointer-events: none;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: 0.85; } }
+
+  @media (max-width: 400px) {
+    .word-text { font-size: clamp(1.5rem, 9vw, 2.4rem); }
+    .words-row { column-gap: 18px; row-gap: 18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="top-bar">
+    <div class="app-title">🐾 Popoosh's Reading Ladder</div>
+    <div class="badge-row">
+      <div class="star-counter" id="star-counter">⭐ 0</div>
+      <button class="piggy-btn" id="piggy-btn" aria-label="Open coin bank">🐷 $0.00</button>
+    </div>
+  </div>
+
+  <div class="tabs-row" id="tabs-row"></div>
+
+  <div class="progress-row">
+    <div class="sentence-counter" id="sentence-counter">Sentence 1 of 6</div>
+    <div class="dot-row" id="dot-row"></div>
+  </div>
+
+  <div class="sentence-card" id="sentence-card">
+    <div class="words-row" id="words-row"></div>
+
+    <div class="sentence-scrub" id="sentence-scrub"></div>
+    <div class="scrub-hint">🐾 drag the paw — it says each word as it gets there</div>
+
+    <div class="done-screen" id="done-screen">
+      <div class="done-trophy" id="done-trophy">🏆</div>
+      <div class="done-title" id="done-title">Tab complete!</div>
+      <div class="done-sub" id="done-sub">Great reading, Adrian!</div>
+      <button class="replay-btn" id="replay-btn">Keep going 🔁</button>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <button class="btn-read" id="btn-read" aria-label="Toggle reading mode" aria-pressed="false">🔊 Read it!</button>
+  </div>
+
+  <div class="record-row">
+    <button class="btn-record" id="btn-record" aria-label="Record yourself reading (optional)">🎙️ Record</button>
+    <button class="btn-play" id="btn-play" aria-label="Open your recordings">📼 My Recordings</button>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="nav-btn" id="btn-prev" aria-label="Previous sentence">◀</button>
+    <button class="nav-btn btn-next-primary" id="btn-next">Next ▶</button>
+  </div>
+</div>
+
+<div class="piggy-overlay" id="piggy-overlay">
+  <div class="piggy-header">
+    <div class="piggy-title">🐷 Coin Bank</div>
+    <button class="piggy-close" id="piggy-close" aria-label="Close">✕</button>
+  </div>
+  <div class="piggy-total" id="piggy-total">$0.00</div>
+  <div class="piggy-tabs">
+    <button class="piggy-tab active" id="piggy-tab-earnings">Earnings</button>
+    <button class="piggy-tab" id="piggy-tab-cashouts">Cash-Outs</button>
+  </div>
+  <div class="piggy-list" id="piggy-list"></div>
+  <button class="piggy-cashout-btn" id="piggy-cashout-btn">💵 Cash Out</button>
+  <div class="piggy-confirm" id="piggy-confirm">
+    <div class="piggy-confirm-box">
+      <div class="piggy-confirm-text" id="piggy-confirm-text">Cash out $0.00?</div>
+      <div class="piggy-confirm-row">
+        <button class="piggy-confirm-btn piggy-confirm-no" id="piggy-confirm-no">Not yet</button>
+        <button class="piggy-confirm-btn piggy-confirm-yes" id="piggy-confirm-yes">Yes, cash out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="piggy-overlay" id="rec-overlay">
+  <div class="piggy-header">
+    <div class="piggy-title">📼 My Recordings</div>
+    <button class="piggy-close" id="rec-close" aria-label="Close">✕</button>
+  </div>
+  <div class="piggy-list" id="rec-list"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  LEVELS — the whole series lives here. Each object is
+//  one tab. PHASE 1 = the six CVC tabs below. Future
+//  phases append more tab objects to this same array.
+// ═══════════════════════════════════════════════════
+const LEVELS = [
+  // ───────── PHASE 1: CVC WORDS ─────────
+  {
+    id: 'short-a',
+    label: 'Short A',
+    sentences: [
+      "The cat sat.",
+      "A cat can nap.",
+      "The fat cat ran fast.",
+      "Sam has a red bag.",
+      "The cat sat on the mat.",
+      "Dad ran to grab the bag.",
+    ]
+  },
+  {
+    id: 'short-i',
+    label: 'Short I',
+    sentences: [
+      "The pig can dig.",
+      "Kim can sit.",
+      "The pig is big.",
+      "Tim hid in the bin.",
+      "The kid did a big flip.",
+      "Six pigs sit in the pit.",
+    ]
+  },
+  {
+    id: 'short-o',
+    label: 'Short O',
+    sentences: [
+      "The dog can hop.",
+      "Tom got a mop.",
+      "The dog sat on top.",
+      "Mom put the pot on top.",
+      "The hot dog ran a lot.",
+      "Tom got hot and had to stop.",
+    ]
+  },
+  {
+    id: 'short-e',
+    label: 'Short E',
+    sentences: [
+      "The hen ran.",
+      "Ben can peg the tent.",
+      "The wet hen fed her chick.",
+      "Ted set the red pen down.",
+      "Ten men met at ten.",
+      "The vet let the pet rest.",
+    ]
+  },
+  {
+    id: 'short-u',
+    label: 'Short U',
+    sentences: [
+      "The bug ran.",
+      "Gus got a cup.",
+      "The bug is fun.",
+      "Gus had a bug in a jug.",
+      "The sun is hot at dusk.",
+      "Gus and Bud ran up the hill.",
+    ]
+  },
+  {
+    id: 'mixed-cvc',
+    label: 'CVC Mixed',
+    sentences: [
+      "The cat sat on a big red mat.",
+      "Tom and Ben ran to get the bug.",
+      "The pig, the hen, and the dog sat.",
+      "Gus put the wet mop in the tub.",
+      "Kim can hop, run, and skip a lot.",
+      "The sun set as the fox ran to the den.",
+    ]
+  },
+  // ───────── PHASE 2: CONSONANT BLENDS & DIGRAPHS ─────────
+  {
+    id: 'l-blends',
+    label: 'L-Blends',
+    sentences: [
+      "The flag is black.",
+      "Clap your hands fast.",
+      "Gus can slip on the mat.",
+      "The glass is on the desk.",
+      "Class, please sit and be still.",
+      "The black sled can go down the hill.",
+    ]
+  },
+  {
+    id: 'r-blends',
+    label: 'R-Blends',
+    sentences: [
+      "The frog can jump.",
+      "Gran will bring a big drum.",
+      "The crab ran to the sand.",
+      "Brad will drop the truck.",
+      "The big tractor is by the barn.",
+      "Fred and Greg will get the frog and crab.",
+    ]
+  },
+  {
+    id: 's-blends',
+    label: 'S-Blends',
+    sentences: [
+      "The star is small.",
+      "Stan can swim fast.",
+      "The snake hid in the grass.",
+      "Scott will stop and rest.",
+      "The skunk will step on the stump.",
+      "Scott and Stan will skip past the swamp.",
+    ]
+  },
+  {
+    id: 'digraphs',
+    label: 'Digraphs',
+    sentences: [
+      "The fish can swim.",
+      "Chad will chop the log.",
+      "This shell is on the shelf.",
+      "Fish can splash and swim.",
+      "The chick will hatch fast.",
+      "Chad and Beth will fish by the shed.",
+    ]
+  },
+  {
+    id: 'blends-digraphs-mixed',
+    label: 'Blends Mixed',
+    sentences: [
+      "The black cat can clap and jump.",
+      "Stan will bring the frog and crab.",
+      "Chad and Beth will swim past the crab.",
+      "The small frog will hop on the flat rock.",
+      "This snake will slip past the tall grass.",
+      "The fish and the frog swim past the black rock.",
+    ]
+  },
+  // ───────── PHASE 3: LONG-VOWEL SILENT-E (VCe) WORDS ─────────
+  {
+    id: 'a-e',
+    label: 'A-E',
+    sentences: [
+      "The cake is on the plate.",
+      "Jake made a big cake.",
+      "The snake can slide and hide.",
+      "Kate gave Jane a name tag.",
+      "The whale can swim in the wave.",
+      "Jake and Kate ate grapes and cake at the lake.",
+    ]
+  },
+  {
+    id: 'i-e',
+    label: 'I-E',
+    sentences: [
+      "The kite can fly.",
+      "Mike will ride his bike.",
+      "The fire is bright and warm.",
+      "Five kids will slide and hide.",
+      "Mike gave a big smile this time.",
+      "Mike and Ike will ride bikes five times.",
+    ]
+  },
+  {
+    id: 'o-e',
+    label: 'O-E',
+    sentences: [
+      "The dog has a bone.",
+      "Rose drove home alone.",
+      "Joe wrote a note to Rose.",
+      "The rope is by the stone.",
+      "Smoke rose from the old stove.",
+      "Joe drove home and wrote a note by the stove.",
+    ]
+  },
+  {
+    id: 'u-e',
+    label: 'U-E',
+    sentences: [
+      "The cube is huge.",
+      "June has a cute pup.",
+      "Luke will use the flute.",
+      "The mule is huge and cute.",
+      "June and Luke will use the tube.",
+      "Luke will use a huge cube and a cute flute in June.",
+    ]
+  },
+  {
+    id: 'silent-e-mixed',
+    label: 'Silent-E Mixed',
+    sentences: [
+      "Jake rode his bike home.",
+      "Kate will smile and wave at June.",
+      "The whale swims by the huge stone.",
+      "Mike gave Rose a cute kite.",
+      "The snake hid in a hole by the rope.",
+      "Jake, Kate, and Luke drove home to bake a cake and play a flute.",
+    ]
+  },
+  // ───────── PHASE 4: VOWEL TEAMS & R-CONTROLLED VOWELS ─────────
+  {
+    id: 'long-a-teams',
+    label: 'Long-A Teams',
+    sentences: [
+      "It will rain today.",
+      "The train is fast.",
+      "May I play all day?",
+      "Gail will paint a tray.",
+      "The mail came in the rain.",
+      "Jay and Gail will sail away and play.",
+    ]
+  },
+  {
+    id: 'long-e-teams',
+    label: 'Long-E Teams',
+    sentences: [
+      "The tree is green.",
+      "We will eat and sleep.",
+      "The team will read at the beach.",
+      "A seed can grow deep in the dirt.",
+      "We had a dream about the sea.",
+      "The team will clean the deep, green sea.",
+    ]
+  },
+  {
+    id: 'long-o-teams',
+    label: 'Long-O Teams',
+    sentences: [
+      "The boat is slow.",
+      "Joan will row the boat.",
+      "The goat ate the soap.",
+      "Snow will grow on the road.",
+      "Joan put on her coat in the snow.",
+      "The old goat will row a boat down the road in the snow.",
+    ]
+  },
+  {
+    id: 'r-controlled',
+    label: 'R-Controlled',
+    sentences: [
+      "The car is fast.",
+      "A bird can chirp.",
+      "The farmer will plant corn.",
+      "The shark swims near the shore.",
+      "The girl will turn and twirl in the dirt.",
+      "The farmer's horse ran past the barn during the storm.",
+    ]
+  },
+  {
+    id: 'diphthongs',
+    label: 'Diphthongs',
+    sentences: [
+      "The boy has a toy.",
+      "A cow can growl loud.",
+      "The coin fell out of my hand.",
+      "The brown cloud is loud with thunder.",
+      "The boy and the cow walked to town.",
+      "The proud boy found a shiny coin and shouted out loud.",
+    ]
+  },
+  {
+    id: 'vowel-teams-mixed',
+    label: 'Vowel Teams Mixed',
+    sentences: [
+      "The train will leave at dawn.",
+      "Joan and the girl will play by the sea.",
+      "The brown goat ate corn near the barn.",
+      "A loud storm blew snow past the tree.",
+      "The boy will paint a boat and a toy car.",
+      "Gail and the boy will row the boat as rain and thunder roar.",
+    ]
+  },
+  // ───────── NO FURTHER PHASE PLANNED — see roadmap note above ─────────
+];
+
+// ═══════════════════════════════════════════════════
+//  PHONICS CHUNKING (kept from the wider series — lets
+//  future phases fuse digraphs/vowel-teams into one
+//  highlight span, e.g. "th", "ai". Phase 1 sentences are
+//  plain CVC, so this mostly renders single letters.)
+// ═══════════════════════════════════════════════════
+const PHONICS_PATTERNS = [
+  'igh','tch','dge',
+  'th','ch','sh','wh','ck','ph','ng','qu',
+  'ai','ay','ee','ea','oa','ow','oo',
+  'oi','oy','ou',
+  'ar','er','ir','or','ur',
+];
+
+function isLetterOrApos(ch) { return /[A-Za-z']/.test(ch); }
+
+// classic silent-e (vowel-consonant-e) pattern: cake, bike, home, cute...
+// used to visually mark the final "e" as quiet
+function isSilentEWord(word) {
+  const clean = word.replace(/[^A-Za-z]/g, '');
+  return clean.length >= 3 && /[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(clean);
+}
+
+function chunkWord(word) {
+  const lower = word.toLowerCase();
+  const chunks = [];
+  let i = 0;
+  while (i < word.length) {
+    if (!isLetterOrApos(word[i])) {
+      chunks.push({ text: word[i], isPair: false, navigable: false });
+      i += 1;
+      continue;
+    }
+    let best = null;
+    for (const pat of PHONICS_PATTERNS) {
+      if (pat.length <= word.length - i && lower.slice(i, i + pat.length) === pat) {
+        if (!best || pat.length > best.length) best = pat;
+      }
+    }
+    if (best) {
+      chunks.push({ text: word.slice(i, i + best.length), isPair: true, navigable: true });
+      i += best.length;
+    } else {
+      chunks.push({ text: word[i], isPair: false, navigable: true });
+      i += 1;
+    }
+  }
+  if (isSilentEWord(word)) {
+    const last = chunks[chunks.length - 1];
+    if (last && last.navigable && last.text.toLowerCase() === 'e') last.isSilent = true;
+  }
+  return chunks;
+}
+
+function buildSentenceMarkup(sentenceText) {
+  const words = sentenceText.split(' ');
+  let navPos = 0;
+  const wordsHtml = words.map((word, wIdx) => {
+    const chunks = chunkWord(word);
+    const inner = chunks.map(c => {
+      if (!c.navigable) return `<span class="chunk chunk-punct">${c.text}</span>`;
+      const nav = navPos++;
+      const cls = 'chunk' + (c.isPair ? ' chunk-pair' : '') + (c.isSilent ? ' chunk-silent' : '');
+      return `<span class="chunk ${cls}" data-nav="${nav}" data-word="${wIdx}">${c.text}</span>`;
+    }).join('');
+    return `<div class="word-unit"><div class="word-text" data-word="${wIdx}">${inner}</div></div>`;
+  });
+  return { wordsHtml, navCount: navPos, words };
+}
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let levelIdx = 0;
+let sentenceIdx = 0;
+const levelSentencesDone = LEVELS.map(l => new Set()); // per-level completed sentence indices
+const levelsFullyDone = new Set();
+
+const tabsRow      = document.getElementById('tabs-row');
+const starEl       = document.getElementById('star-counter');
+const wordsRowEl   = document.getElementById('words-row');
+const scrubEl      = document.getElementById('sentence-scrub');
+const counterEl    = document.getElementById('sentence-counter');
+const dotRowEl     = document.getElementById('dot-row');
+const doneScr      = document.getElementById('done-screen');
+const doneTitle    = document.getElementById('done-title');
+const doneSub      = document.getElementById('done-sub');
+const doneTrophy   = document.getElementById('done-trophy');
+const btnPrev      = document.getElementById('btn-prev');
+const btnNext      = document.getElementById('btn-next');
+const btnRead      = document.getElementById('btn-read');
+const btnRecord    = document.getElementById('btn-record');
+const btnPlay      = document.getElementById('btn-play');
+
+// ═══════════════════════════════════════════════════
+//  READING-MODE TOGGLE + WORD SPEECH
+//  Same rule as the rest of the series: dragging the paw
+//  speaks the whole word it lands on, once per word.
+// ═══════════════════════════════════════════════════
+let soundWhileScrub = false;
+btnRead.addEventListener('click', () => {
+  soundWhileScrub = !soundWhileScrub;
+  btnRead.classList.toggle('reading', soundWhileScrub);
+  btnRead.setAttribute('aria-pressed', String(soundWhileScrub));
+  btnRead.textContent = soundWhileScrub ? '🔴 Reading mode ON' : '🔊 Read it!';
+  if (!soundWhileScrub) stopSpeech();
+});
+
+function stopSpeech() {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function speakWord(word) {
+  if (!word) return;
+  const clean = word.replace(/[^A-Za-z']/g, '');
+  if (!clean) return;
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.rate  = 0.85;
+  utter.pitch = 1.05;
+  const voices = window.speechSynthesis.getVoices();
+  const nice = voices.find(v => /samantha|victoria|zira|google us english/i.test(v.name))
+             || voices.find(v => v.lang === 'en-US')
+             || voices[0];
+  if (nice) utter.voice = nice;
+  window.speechSynthesis.speak(utter);
+}
+
+// ═══════════════════════════════════════════════════
+//  STARS + HATCHERY
+// ═══════════════════════════════════════════════════
+let starsEarned = 0;
+function awardStars(amount) {
+  starsEarned += amount;
+  starEl.textContent = `⭐ ${starsEarned}`;
+  starEl.classList.remove('pop');
+  void starEl.offsetWidth;
+  starEl.classList.add('pop');
+  if (typeof window.sendSparkToHatchery === 'function') {
+    window.sendSparkToHatchery('reading', amount);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  PIGGY BANK (same system as the rest of the series)
+// ═══════════════════════════════════════════════════
+const piggyBtn        = document.getElementById('piggy-btn');
+const piggyOverlay     = document.getElementById('piggy-overlay');
+const piggyClose       = document.getElementById('piggy-close');
+const piggyTotalEl     = document.getElementById('piggy-total');
+const piggyListEl      = document.getElementById('piggy-list');
+const piggyTabEarn     = document.getElementById('piggy-tab-earnings');
+const piggyTabCash     = document.getElementById('piggy-tab-cashouts');
+const piggyCashoutBtn  = document.getElementById('piggy-cashout-btn');
+const piggyConfirm     = document.getElementById('piggy-confirm');
+const piggyConfirmText = document.getElementById('piggy-confirm-text');
+const piggyConfirmYes  = document.getElementById('piggy-confirm-yes');
+const piggyConfirmNo   = document.getElementById('piggy-confirm-no');
+
+let piggyState = { totalCents: 0, ledger: [], cashOuts: [] };
+let piggyTab = 'earnings';
+const PIGGY_KEY = 'popoosh-reading-ladder-piggybank';
+
+function formatCents(cents) { return `$${(cents / 100).toFixed(2)}`; }
+
+async function loadPiggyBank() {
+  try {
+    const res = await window.storage.get(PIGGY_KEY, false);
+    if (res && res.value) piggyState = JSON.parse(res.value);
+  } catch (e) { /* no saved bank yet */ }
+  renderPiggyUI();
+}
+async function savePiggyBank() {
+  try { await window.storage.set(PIGGY_KEY, JSON.stringify(piggyState), false); }
+  catch (e) { /* storage unavailable this session */ }
+}
+function addCoin(amountCents, label) {
+  piggyState.totalCents += amountCents;
+  piggyState.ledger.unshift({ amount: amountCents, label, date: new Date().toLocaleDateString() });
+  renderPiggyUI();
+  savePiggyBank();
+}
+function renderPiggyUI() {
+  piggyBtn.textContent = `🐷 ${formatCents(piggyState.totalCents)}`;
+  piggyTotalEl.textContent = formatCents(piggyState.totalCents);
+  piggyCashoutBtn.disabled = piggyState.totalCents <= 0;
+  const items = piggyTab === 'earnings' ? piggyState.ledger : piggyState.cashOuts;
+  if (!items || items.length === 0) {
+    piggyListEl.innerHTML = `<div class="piggy-empty">${piggyTab === 'earnings' ? 'No coins yet — finish a sentence to earn one!' : 'No cash-outs yet.'}</div>`;
+    return;
+  }
+  piggyListEl.innerHTML = items.map(item => `
+    <div class="piggy-row">
+      <div>
+        <div class="piggy-row-label">${item.label}</div>
+        <div class="piggy-row-date">${item.date}</div>
+      </div>
+      <div class="piggy-row-amount ${item.amount < 0 ? 'negative' : ''}">${item.amount < 0 ? '-' : '+'}${formatCents(Math.abs(item.amount))}</div>
+    </div>
+  `).join('');
+}
+function setPiggyTab(tab) {
+  piggyTab = tab;
+  piggyTabEarn.classList.toggle('active', tab === 'earnings');
+  piggyTabCash.classList.toggle('active', tab === 'cashouts');
+  renderPiggyUI();
+}
+piggyBtn.addEventListener('click', () => { piggyOverlay.classList.add('show'); renderPiggyUI(); });
+piggyClose.addEventListener('click', () => piggyOverlay.classList.remove('show'));
+piggyTabEarn.addEventListener('click', () => setPiggyTab('earnings'));
+piggyTabCash.addEventListener('click', () => setPiggyTab('cashouts'));
+piggyCashoutBtn.addEventListener('click', () => {
+  if (piggyState.totalCents <= 0) return;
+  piggyConfirmText.textContent = `Cash out ${formatCents(piggyState.totalCents)}?`;
+  piggyConfirm.classList.add('show');
+});
+piggyConfirmNo.addEventListener('click', () => piggyConfirm.classList.remove('show'));
+piggyConfirmYes.addEventListener('click', () => {
+  piggyState.cashOuts.unshift({ amount: piggyState.totalCents, label: 'Cashed out', date: new Date().toLocaleDateString() });
+  piggyState.totalCents = 0;
+  piggyState.ledger = [];
+  piggyConfirm.classList.remove('show');
+  setPiggyTab('cashouts');
+  savePiggyBank();
+});
+loadPiggyBank();
+
+// ═══════════════════════════════════════════════════
+//  OPTIONAL RECORDING — Adrian can record himself
+//  reading the sentence aloud and build up a library of
+//  past recordings he can browse and play back. Fully
+//  optional; nothing else in the app depends on it.
+// ═══════════════════════════════════════════════════
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+let discardNextStop = false; // true when stop() is forced by navigation, not the user
+
+// some hosting contexts (e.g. a sandboxed preview, or opening the
+// file directly instead of over https/localhost) silently swallow
+// alert() — this shows an on-screen message that always works
+function showToast(message, duration) {
+  let toast = document.getElementById('toast-banner');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-banner';
+    toast.className = 'toast-banner';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), duration || 4000);
+}
+
+// stops a recording that's still in progress — used when the user
+// taps Stop themselves (discard=false) or when leaving the sentence
+// mid-recording (discard=true, so the cut-off audio isn't saved)
+function stopRecordingIfActive(discard) {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    discardNextStop = discard;
+    mediaRecorder.stop();
+  }
+}
+
+function resetRecordButton() {
+  isRecording = false;
+  btnRecord.classList.remove('recording');
+  btnRecord.textContent = '🎙️ Record';
+}
+
+function resetRecording() {
+  // if he was still recording when the sentence changed, stop the
+  // mic properly and throw away that cut-off recording rather than
+  // leaving the recorder orphaned and silently running
+  stopRecordingIfActive(true);
+  recordedChunks = [];
+  resetRecordButton();
+}
+
+btnRecord.addEventListener('click', async () => {
+  if (isRecording) {
+    stopRecordingIfActive(false);
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (window.isSecureContext === false) {
+      showToast("Recording needs a secure connection (https, or a localhost server) — it won't work opened directly from a downloaded file. Everything else in the app still works!");
+    } else {
+      showToast("This device can't record audio here — recording is optional, so feel free to keep reading without it!");
+    }
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const wasDiscard = discardNextStop;
+      discardNextStop = false;
+      stream.getTracks().forEach(t => t.stop()); // always release the mic
+      resetRecordButton();
+
+      if (wasDiscard) { recordedChunks = []; return; }
+
+      const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+      recordedChunks = [];
+      addRecordingToLibrary(blob);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    btnRecord.classList.add('recording');
+    btnRecord.textContent = '⏹️ Stop';
+  } catch (err) {
+    if (err && err.name === 'NotAllowedError') {
+      showToast("Microphone access was blocked — recording is optional, so no worries, keep reading!");
+    } else {
+      showToast("Couldn't start recording — recording is optional, so no worries, keep reading!");
+    }
+  }
+});
+
+// ── recordings library — every recording is kept (not just the
+//    last one), so "My Recordings" can browse and replay any of them
+const RECORDINGS_KEY = 'popoosh-reading-ladder-recordings';
+const MAX_RECORDINGS = 20; // keeps saved storage well under the size limit
+let recordingsLibrary = [];
+
+const recOverlay = document.getElementById('rec-overlay');
+const recListEl  = document.getElementById('rec-list');
+const recClose   = document.getElementById('rec-close');
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function loadRecordings() {
+  try {
+    const res = await window.storage.get(RECORDINGS_KEY, false);
+    if (res && res.value) recordingsLibrary = JSON.parse(res.value);
+  } catch (e) { /* none saved yet */ }
+}
+async function saveRecordingsToStorage() {
+  try { await window.storage.set(RECORDINGS_KEY, JSON.stringify(recordingsLibrary), false); }
+  catch (e) { /* storage unavailable — still works for this session */ }
+}
+
+async function addRecordingToLibrary(blob) {
+  try {
+    const audioDataUrl = await blobToDataURL(blob);
+    const level = LEVELS[levelIdx];
+    recordingsLibrary.unshift({
+      date: new Date().toLocaleString(),
+      levelLabel: level.label,
+      sentenceText: level.sentences[sentenceIdx],
+      audioDataUrl,
+    });
+    if (recordingsLibrary.length > MAX_RECORDINGS) recordingsLibrary.length = MAX_RECORDINGS;
+    showToast('Got it! Tap "My Recordings" to hear it back.');
+    saveRecordingsToStorage();
+  } catch (e) {
+    showToast("Couldn't save that recording — no worries, keep reading!");
+  }
+}
+
+function renderRecordingsList() {
+  if (!recordingsLibrary.length) {
+    recListEl.innerHTML = `<div class="piggy-empty">No recordings yet — tap 🎙️ Record to make one!</div>`;
+    return;
+  }
+  recListEl.innerHTML = recordingsLibrary.map((r, i) => `
+    <button class="piggy-row rec-row" data-idx="${i}">
+      <div>
+        <div class="piggy-row-label">${r.levelLabel}: "${r.sentenceText}"</div>
+        <div class="piggy-row-date">${r.date}</div>
+      </div>
+      <div class="piggy-row-amount">▶️</div>
+    </button>
+  `).join('');
+  recListEl.querySelectorAll('.rec-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = recordingsLibrary[parseInt(btn.dataset.idx, 10)];
+      if (!entry) return;
+      stopSpeech();
+      const audio = new Audio(entry.audioDataUrl);
+      audio.play().catch(() => showToast("Couldn't play that recording."));
+    });
+  });
+}
+
+btnPlay.addEventListener('click', () => {
+  recOverlay.classList.add('show');
+  renderRecordingsList();
+});
+recClose.addEventListener('click', () => recOverlay.classList.remove('show'));
+loadRecordings();
+
+// ═══════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════
+function renderTabs() {
+  tabsRow.innerHTML = LEVELS.map((lvl, i) => `
+    <button class="tab-btn ${i === levelIdx ? 'active' : ''} ${levelsFullyDone.has(i) ? 'tab-done' : ''}" data-level="${i}">${lvl.label}</button>
+  `).join('');
+  tabsRow.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.level, 10);
+      if (i === levelIdx) return;
+      levelIdx = i;
+      sentenceIdx = 0;
+      renderSentence();
+      renderTabs();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER CURRENT SENTENCE
+// ═══════════════════════════════════════════════════
+function renderSentence() {
+  stopSpeech();
+  resetRecording();
+  doneScr.classList.remove('show');
+
+  const level = LEVELS[levelIdx];
+  const sentence = level.sentences[sentenceIdx];
+  const { wordsHtml } = buildSentenceMarkup(sentence);
+  wordsRowEl.innerHTML = wordsHtml.join('');
+  wordsRowEl.id = 'words-row';
+
+  counterEl.textContent = `Sentence ${sentenceIdx + 1} of ${level.sentences.length}`;
+  dotRowEl.innerHTML = level.sentences.map((_, i) =>
+    `<div class="dot ${levelSentencesDone[levelIdx].has(i) ? 'done' : ''} ${i === sentenceIdx ? 'current' : ''}"></div>`
+  ).join('');
+
+  btnPrev.disabled = sentenceIdx === 0;
+  btnNext.textContent = sentenceIdx === level.sentences.length - 1 ? 'Finish tab ▶' : 'Next ▶';
+
+  attachScrub(sentence);
+}
+
+// ═══════════════════════════════════════════════════
+//  SCRUB BAR — one per sentence, paw handle, word-level
+//  highlight + speech (matches the rest of the series)
+// ═══════════════════════════════════════════════════
+function highlightWordAt(wordIdx) {
+  wordsRowEl.querySelectorAll('.word-text[data-word]').forEach(el => {
+    const idx = parseInt(el.dataset.word, 10);
+    el.classList.remove('word-current', 'word-past');
+    if (idx === wordIdx) el.classList.add('word-current');
+    else if (idx < wordIdx) el.classList.add('word-past');
+  });
+}
+
+function attachScrub(sentenceText) {
+  scrubEl.innerHTML = '';
+  const fillEl = document.createElement('div');
+  fillEl.className = 'sentence-scrub-fill';
+  const handleEl = document.createElement('div');
+  handleEl.className = 'sentence-scrub-handle';
+  handleEl.textContent = '🐾';
+  scrubEl.appendChild(fillEl);
+  scrubEl.appendChild(handleEl);
+
+  const { navCount, words } = buildSentenceMarkup(sentenceText);
+  const safeNavCount = Math.max(navCount, 1);
+  let lastNavIdx = -1;
+  let lastWordIdx = -1;
+
+  function updateFromClientX(clientX) {
+    const rect = scrubEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const rel = Math.min(1, Math.max(0, rect.width ? x / rect.width : 0));
+    const navIdx = Math.round(rel * (safeNavCount - 1));
+    fillEl.style.width = `${rel * 100}%`;
+    handleEl.style.left = `${rel * 100}%`;
+
+    if (navIdx !== lastNavIdx) {
+      lastNavIdx = navIdx;
+      const el = wordsRowEl.querySelector(`.chunk[data-nav="${navIdx}"]`);
+      const wordIdx = el ? parseInt(el.dataset.word, 10) : 0;
+      highlightWordAt(wordIdx);
+
+      if (soundWhileScrub && wordIdx !== lastWordIdx) {
+        lastWordIdx = wordIdx;
+        speakWord(words[wordIdx]);
+      }
+
+      if (navIdx === safeNavCount - 1) onSentenceFullyExplored();
+    }
+  }
+
+  scrubEl.addEventListener('pointerdown', (e) => {
+    if (!soundWhileScrub) stopSpeech();
+    lastNavIdx = -1;
+    lastWordIdx = -1;
+    scrubEl.setPointerCapture(e.pointerId);
+    updateFromClientX(e.clientX);
+  });
+  scrubEl.addEventListener('pointermove', (e) => {
+    if (e.buttons === 0 && e.pointerType === 'mouse') return;
+    updateFromClientX(e.clientX);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  COMPLETION — sentence -> tab -> whole phase
+// ═══════════════════════════════════════════════════
+function onSentenceFullyExplored() {
+  if (levelSentencesDone[levelIdx].has(sentenceIdx)) return;
+  levelSentencesDone[levelIdx].add(sentenceIdx);
+  awardStars(1);
+
+  const level = LEVELS[levelIdx];
+  if (levelSentencesDone[levelIdx].size >= level.sentences.length && !levelsFullyDone.has(levelIdx)) {
+    levelsFullyDone.add(levelIdx);
+    addCoin(5, `"${level.label}" tab finished`);
+    renderTabs();
+
+    if (levelsFullyDone.size >= LEVELS.length) {
+      addCoin(25, 'Finished all of Phase 1!');
+      showDone('🏆', 'Phase 1 complete!', 'Every tab finished — amazing reading, Adrian!', true);
+    } else {
+      showDone('🎉', `${level.label} tab done!`, 'Pick another tab, or tap Keep going for the next one.', false);
+    }
+  }
+}
+
+function showDone(trophy, title, sub, bigCelebration) {
+  doneTrophy.textContent = trophy;
+  doneTitle.textContent = title;
+  doneSub.textContent = sub;
+  doneScr.classList.add('show');
+  confettiBurst(bigCelebration ? 60 : 30);
+  setTimeout(() => speak(bigCelebration ? "Amazing! You finished every tab!" : `You finished the ${LEVELS[levelIdx].label} tab!`), 300);
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.9;
+  utter.pitch = 1.05;
+  window.speechSynthesis.speak(utter);
+}
+
+document.getElementById('replay-btn').addEventListener('click', () => {
+  doneScr.classList.remove('show');
+  // move to the next not-yet-done tab if one exists, else stay put
+  const nextLevel = LEVELS.findIndex((_, i) => !levelsFullyDone.has(i));
+  if (nextLevel !== -1) levelIdx = nextLevel;
+  sentenceIdx = 0;
+  renderSentence();
+  renderTabs();
+});
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════
+function goNext() {
+  const level = LEVELS[levelIdx];
+  if (sentenceIdx < level.sentences.length - 1) {
+    sentenceIdx++;
+    renderSentence();
+  } else if (levelIdx < LEVELS.length - 1) {
+    levelIdx++;
+    sentenceIdx = 0;
+    renderSentence();
+    renderTabs();
+  }
+}
+function goPrev() {
+  if (sentenceIdx > 0) {
+    sentenceIdx--;
+    renderSentence();
+  } else if (levelIdx > 0) {
+    levelIdx--;
+    sentenceIdx = LEVELS[levelIdx].sentences.length - 1;
+    renderSentence();
+    renderTabs();
+  }
+}
+btnNext.addEventListener('click', goNext);
+btnPrev.addEventListener('click', goPrev);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') goNext();
+  if (e.key === 'ArrowLeft')  goPrev();
+});
+
+// ═══════════════════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════════════════
+function confettiBurst(n) {
+  const cols = ['#f5a623','#3ab5c8','#4caf72','#d45020','#5068d8','#d86098'];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    const sz = 6 + Math.random() * 8;
+    p.style.cssText = `
+      width:${sz}px; height:${sz*0.4}px;
+      left:${30+Math.random()*40}vw;
+      background:${cols[Math.floor(Math.random()*cols.length)]};
+      animation-duration:${1.3+Math.random()*1.1}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 2600);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = () => {}; }
+renderTabs();
+renderSentence();
+</script>
+</body>
+</html>
